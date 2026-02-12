@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>3 Hamlede Mat</title>
+  <link rel="stylesheet" href="lib/chessboard-1.0.0.min.css">
+
+  <style>
+#boardContainer {
+  position: relative;
+  width: 400px;
+}
+
+#gameMessage {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  color: white;
+  font-size: 28px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  z-index: 10;
+}
+
+#gameMessage.show {
+  opacity: 1;
+}
+
+.fade {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.fade.show {
+  opacity: 1;
+}
+
+.board-color-1 .white-1e1d7 { background: #f0d9b5 !important; }
+.board-color-1 .black-3c85d { background: #b58863 !important; }
+
+.board-color-2 .white-1e1d7 { background: #eaeaea !important; }
+.board-color-2 .black-3c85d { background: #555 !important; }
+
+.board-color-3 .white-1e1d7 { background: #cfe2f3 !important; }
+.board-color-3 .black-3c85d { background: #2f5597 !important; }
+
+.board-color-4 .white-1e1d7 { background: #fce5cd !important; }
+.board-color-4 .black-3c85d { background: #783f04 !important; }
+</style>
+</head>
+
+<body>
+
+  <div id="boardContainer">
+  <div id="board" class="fade show" style="width: 400px"></div>
+  <div id="gameMessage"></div>
+</div>
+
+  <button id="newBtn">Yeni Senaryo</button>
+
+  <select id="themeSelect">
+    <option value="wikipedia">Wikipedia</option>
+    <option value="alpha">Alpha</option>
+    <option value="uscf">USCF</option>
+    <option value="cburnett">CBurnett</option>
+    <option value="merida">Merida</option>
+    <option value="pirouetti">Pirouetti</option>
+  </select>
+
+  <script src="lib/jquery.min.js"></script>
+  <script src="lib/chess.min.js"></script>
+  <script src="lib/chessboard-1.0.0.min.js"></script>
+  <script src="game.js"></script>
+
+</body>
+</html>
