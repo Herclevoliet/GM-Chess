@@ -1,14 +1,34 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta charset="UTF-8">
-  <title>3 Hamlede Mat</title>
+  <title>GM-Chess</title>
   <link rel="stylesheet" href="lib/chessboard-1.0.0.min.css">
 
   <style>
 #boardContainer {
   position: relative;
-  width: 400px;
+  width: 95vw;       
+  max-width: 500px;  
+  margin: auto;       
+}
+
+#board {
+  width: 100%;
+  aspect-ratio: 1 / 1; 
+}
+
+.selected-square {
+  box-shadow: inset 0 0 0 4px #f1c40f;
+}
+
+.legal-move {
+  box-shadow: inset 0 0 0 4px rgba(46, 204, 113, 0.8);
+}
+
+.last-move {
+  background-color: rgba(241, 196, 15, 0.4) !important;
 }
 
 #gameMessage {
@@ -50,25 +70,31 @@
 
 .board-color-4 .white-1e1d7 { background: #fce5cd !important; }
 .board-color-4 .black-3c85d { background: #783f04 !important; }
+
+button, select {
+  margin-top: 10px;
+  padding: 10px 14px;
+  font-size: 16px;
+  min-height: 44px;  
+  cursor: pointer;
+}
 </style>
 </head>
 
 <body>
 
   <div id="boardContainer">
-  <div id="board" class="fade show" style="width: 400px"></div>
+  <div id="board" class="fade show"></div>
   <div id="gameMessage"></div>
 </div>
 
-  <button id="newBtn">Yeni Senaryo</button>
+  <button id="newBtn">New Scenario</button>
+  <button id="restartBtn">Restart Scenario</button>
 
   <select id="themeSelect">
     <option value="wikipedia">Wikipedia</option>
     <option value="alpha">Alpha</option>
     <option value="uscf">USCF</option>
-    <option value="cburnett">CBurnett</option>
-    <option value="merida">Merida</option>
-    <option value="pirouetti">Pirouetti</option>
   </select>
 
   <script src="lib/jquery.min.js"></script>

@@ -1,8 +1,11 @@
+let playerColor = "w";
 let board;
 let game;
 let engine;
 let puzzles = [];
 let currentPuzzle;
+let selectedSquare = null;
+let lastMove = null;
 let currentTheme = "wikipedia";
 
 const moveSound = new Audio("sounds/move.mp3");
@@ -58,21 +61,29 @@ function initGame() {
   engine.postMessage("isready");
 
 board = Chessboard("board", {
-  draggable: true,
+  draggable: false,
   position: "start",
   pieceTheme: function (piece) {
     return "img/chesspieces/" + currentTheme + "/" + piece + ".png";
-  },
-  onDrop: onDrop
+  }
 });
 
-  document.getElementById("newBtn").onclick = newGame;
   newGame();
 }
 
+document.getElementById("board").addEventListener("click", function (e) {
+  const squareEl = e.target.closest(".square-55d63");
+  if (!squareEl) return;
+
+  const square = squareEl.getAttribute("data-square");
+  if (!square) return;
+
+  onSquareClick(square);
+});
+
   document.getElementById("themeSelect").onchange = function (e) {
     currentTheme = e.target.value;
-    board.position(game.fen()); // taşları yeniden çiz
+    board.position(game.fen()); 
 };
 
 function newGame() {
@@ -81,11 +92,20 @@ function newGame() {
 
   currentPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
   game.load(currentPuzzle.fen);
+
+  const startingColor = game.turn();
+
+  playerColor = startingColor === "w" ? "b" : "w";
+
+  if (playerColor === "w") {
+    board.orientation("white");
+  } else {
+    board.orientation("black");
+  }
+
   applyThemeWithFade();
 
-  if (game.turn() === "b") {
-    window.setTimeout(engineMove, 300);
-  }
+  setTimeout(engineMove, 500);
 }
 
 function onDrop(source, target) {
@@ -103,14 +123,15 @@ function onDrop(source, target) {
 
   if (checkGameEndAndRestart()) return;
 
-  window.setTimeout(engineMove, 300);
+  window.setTimeout(engineMove, 500);
 }
 
 function engineMove() {
+  if (game.turn() === playerColor) return;
   if (checkGameEndAndRestart()) return;
 
   engine.postMessage("position fen " + game.fen());
-  engine.postMessage("go depth 18");
+  engine.postMessage("go depth 10");
 }
 
 function handleEngineMessage(e) {
@@ -127,11 +148,12 @@ function handleEngineMessage(e) {
       promotion: "q"
     });
 
-    board.position(game.fen());
+  board.position(game.fen());
+  playMoveSound(engineMoveObj);
 
-    playMoveSound(engineMoveObj);
+  if (checkGameEndAndRestart()) return;
 
-    checkGameEndAndRestart();
+  handleCheckState();   
   }
 }
 
@@ -160,11 +182,11 @@ function checkGameEndAndRestart() {
   let message = "";
 
   if (isMate) {
-    message = "♟️ MAT!";
+    message = "♟️ MATE!";
     mateSound.currentTime = 0;
     mateSound.play();
   } else if (isDraw) {
-    message = "🤝 BERABERLİK";
+    message = "🤝 DRAW!";
   } else {
     return false;
   }
@@ -190,10 +212,31 @@ function hideMessage() {
   msg.classList.remove("show");
 }
 
+function handleCheckState() {
+  console.log("CHECK?", game.in_check?.(), game.isCheck?.());
+
+  if (
+    (game.in_check && game.in_check()) ||
+    (game.isCheck && game.isCheck())
+  ) {
+    console.log("CHECK DETECTED");
+    checkSound.currentTime = 0;
+    checkSound.play();
+    showTemporaryMessage("⚠️ CHECK!", 900);
+  }
+}
+
+function showTemporaryMessage(text, duration = 800) {
+  showMessage(text);
+
+  setTimeout(() => {
+    hideMessage();
+  }, duration);
+}
+
 function applyThemeWithFade() {
   const boardEl = document.getElementById("board");
 
-  // fade-out
   boardEl.classList.remove("show");
 
   setTimeout(() => {
@@ -205,12 +248,6 @@ function applyThemeWithFade() {
 function playMoveSound(move) {
   if (!move) return;
 
-  if (game.in_check()) {
-    checkSound.currentTime = 0;
-    checkSound.play();
-    return;
-  }
-
   if (move.captured) {
     captureSound.currentTime = 0;
     captureSound.play();
@@ -219,3 +256,150 @@ function playMoveSound(move) {
     moveSound.play();
   }
 }
+
+function restartGame() {
+  console.log("Restart clicked");
+
+  if (!currentPuzzle) return;
+
+  engine.terminate();
+
+  engine = new Worker("engine/stockfish-17.1-single-a496a04.js");
+  engine.onmessage = handleEngineMessage;
+  engine.postMessage("uci");
+  engine.postMessage("isready");
+
+  game = new Chess();
+  game.load(currentPuzzle.fen);
+  
+  playerColor = game.turn() === "w" ? "b" : "w";
+
+  if (playerColor === "w") {
+    board.orientation("white");
+  } else {
+    board.orientation("black");
+}
+
+setTimeout(engineMove, 500);
+}
+
+function onSquareClick(square) {
+  const piece = game.get(square);
+
+  if (!selectedSquare) {
+    if (!piece || piece.color !== playerColor) return;
+
+    selectSquare(square);
+    return;
+  }
+
+  if (piece && piece.color === playerColor) {
+    selectSquare(square);
+    return;
+  }
+
+  const move = game.move({
+    from: selectedSquare,
+    to: square,
+    promotion: "q"
+  });
+
+  if (!move) return;
+
+  lastMove = move;
+
+  board.position(game.fen());
+  playMoveSound(move);
+
+  clearSelection();
+  highlightLastMove();
+
+  if (checkGameEndAndRestart()) return;
+
+  handleCheckState();   
+  setTimeout(engineMove, 900);
+}
+
+function highlightSquare(square) {
+  const squareEl = document.querySelector(`#board .square-${square}`);
+  if (squareEl) {
+    squareEl.style.boxShadow = "inset 0 0 10px 4px rgba(255,255,0,0.7)";
+  }
+}
+
+function selectSquare(square) {
+  clearSelection();
+  selectedSquare = square;
+
+  highlightSelected(square);
+  highlightLegalMoves(square);
+}
+
+function clearSelection() {
+  selectedSquare = null;
+  document.querySelectorAll(".square-55d63").forEach(el => {
+    el.classList.remove("selected-square");
+    el.classList.remove("legal-move");
+  });
+}
+
+function highlightLegalMoves(square) {
+  const moves = game.moves({
+    square: square,
+    verbose: true
+  });
+
+  moves.forEach(move => {
+    const squareEl = document.querySelector(
+      `#board .square-${move.to}`
+    );
+    if (squareEl) {
+      squareEl.classList.add("legal-move");
+    }
+  });
+}
+
+function highlightSelected(square) {
+  const squareEl = document.querySelector(
+    `#board .square-${square}`
+  );
+  if (squareEl) {
+    squareEl.classList.add("selected-square");
+  }
+}
+
+function highlightLastMove() {
+  if (!lastMove) return;
+
+  const fromEl = document.querySelector(
+    `#board .square-${lastMove.from}`
+  );
+  const toEl = document.querySelector(
+    `#board .square-${lastMove.to}`
+  );
+
+  if (fromEl) fromEl.classList.add("last-move");
+  if (toEl) toEl.classList.add("last-move");
+}
+
+function clearHighlights() {
+  document.querySelectorAll("#board .square-55d63").forEach(el => {
+    el.style.boxShadow = "";
+  });
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("DOM ready");
+
+  const newBtn = document.getElementById("newBtn");
+  const restartBtn = document.getElementById("restartBtn");
+
+  console.log("Buttons:", newBtn, restartBtn);
+
+  newBtn.addEventListener("click", newGame);
+  restartBtn.addEventListener("click", restartGame);
+});
+
+window.addEventListener("resize", function () {
+  if (board) board.resize();
+});
