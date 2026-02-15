@@ -7,6 +7,8 @@ let currentPuzzle;
 let selectedSquare = null;
 let lastMove = null;
 let currentTheme = "wikipedia";
+let puzzleHistory = [];
+let currentPuzzleIndex = -1;
 
 const moveSound = new Audio("sounds/move.mp3");
 const captureSound = new Audio("sounds/capture.mp3");
@@ -81,21 +83,25 @@ document.getElementById("board").addEventListener("click", function (e) {
   onSquareClick(square);
 });
 
-  document.getElementById("themeSelect").onchange = function (e) {
-    currentTheme = e.target.value;
-    board.position(game.fen()); 
-};
-
 function newGame() {
   applyBoardTheme();
   pickRandomTheme();
 
-  currentPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
-  game.load(currentPuzzle.fen);
+  currentPuzzleIndex = Math.floor(Math.random() * puzzles.length);
+  currentPuzzle = puzzles[currentPuzzleIndex];
 
-  const startingColor = game.turn();
+  puzzleHistory.push(currentPuzzleIndex);
 
-  playerColor = startingColor === "w" ? "b" : "w";
+  loadPuzzle(currentPuzzle);
+}
+
+function loadPuzzle(puzzle) {
+  game = new Chess();
+  game.load(puzzle.fen);
+
+  playerColor = game.turn();
+
+  board.position(game.fen());
 
   if (playerColor === "w") {
     board.orientation("white");
@@ -104,8 +110,6 @@ function newGame() {
   }
 
   applyThemeWithFade();
-
-  setTimeout(engineMove, 500);
 }
 
 function onDrop(source, target) {
@@ -148,8 +152,12 @@ function handleEngineMessage(e) {
       promotion: "q"
     });
 
+  lastMove = engineMoveObj;
+
   board.position(game.fen());
   playMoveSound(engineMoveObj);
+
+  highlightLastMove();
 
   if (checkGameEndAndRestart()) return;
 
@@ -164,7 +172,6 @@ function pickRandomTheme() {
   } while (newTheme === currentTheme);
 
   currentTheme = newTheme;
-  document.getElementById("themeSelect").value = currentTheme;
 
   applyThemeWithFade();
 }
@@ -272,7 +279,7 @@ function restartGame() {
   game = new Chess();
   game.load(currentPuzzle.fen);
   
-  playerColor = game.turn() === "w" ? "b" : "w";
+  playerColor = game.turn();
 
   if (playerColor === "w") {
     board.orientation("white");
@@ -280,7 +287,7 @@ function restartGame() {
     board.orientation("black");
 }
 
-setTimeout(engineMove, 500);
+  board.position(currentPuzzle.fen);
 }
 
 function onSquareClick(square) {
@@ -340,6 +347,7 @@ function clearSelection() {
   document.querySelectorAll(".square-55d63").forEach(el => {
     el.classList.remove("selected-square");
     el.classList.remove("legal-move");
+    el.classList.remove("pulse");
   });
 }
 
@@ -363,13 +371,21 @@ function highlightSelected(square) {
   const squareEl = document.querySelector(
     `#board .square-${square}`
   );
-  if (squareEl) {
-    squareEl.classList.add("selected-square");
+
+  if (!squareEl) return;
+
+  squareEl.classList.add("selected-square");
+
+  const piece = game.get(square);
+  if (piece) {
+    squareEl.classList.add("pulse");
   }
 }
 
 function highlightLastMove() {
   if (!lastMove) return;
+
+  clearLastMoveHighlight();
 
   const fromEl = document.querySelector(
     `#board .square-${lastMove.from}`
@@ -393,13 +409,47 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const newBtn = document.getElementById("newBtn");
   const restartBtn = document.getElementById("restartBtn");
+  const flipBtn = document.getElementById("flipBtn");
+  const prevBtn = document.getElementById("prevBtn");
 
   console.log("Buttons:", newBtn, restartBtn);
 
   newBtn.addEventListener("click", newGame);
   restartBtn.addEventListener("click", restartGame);
+  flipBtn.addEventListener("click", switchSide);
+  prevBtn.addEventListener("click", loadPreviousPuzzle);
 });
 
 window.addEventListener("resize", function () {
   if (board) board.resize();
 });
+
+function switchSide() {
+  playerColor = playerColor === "w" ? "b" : "w";
+
+  if (playerColor === "w") {
+    board.orientation("white");
+  } else {
+    board.orientation("black");
+  }
+
+  setTimeout(engineMove, 400);
+}
+
+function loadPreviousPuzzle() {
+  if (puzzleHistory.length < 2) return;
+
+  puzzleHistory.pop();
+
+  const prevIndex = puzzleHistory[puzzleHistory.length - 1];
+  currentPuzzleIndex = prevIndex;
+  currentPuzzle = puzzles[prevIndex];
+
+  loadPuzzle(currentPuzzle);
+}
+
+function clearLastMoveHighlight() {
+  document.querySelectorAll("#board .last-move").forEach(el => {
+    el.classList.remove("last-move");
+  });
+}
